@@ -30,7 +30,14 @@ jobs:
           unzip -q OPPO2Strava_v0_2_cloud_build.zip
           ls -la
           ls -la OPPO2Strava_cloud
-
+      - name: Fix Java and Kotlin target
+        working-directory: OPPO2Strava_cloud
+        run: |
+          find . -name "*.gradle" -o -name "*.gradle.kts" | xargs sed -i \
+            -e "s/JavaVersion.VERSION_1_8/JavaVersion.VERSION_17/g" \
+            -e "s/jvmTarget *= *['\"]1.8['\"]/jvmTarget = '17'/g" \
+            -e "s/sourceCompatibility *= *JavaVersion.VERSION_1_8/sourceCompatibility = JavaVersion.VERSION_17/g" \
+            -e "s/targetCompatibility *= *JavaVersion.VERSION_1_8/targetCompatibility = JavaVersion.VERSION_17/g"
       - name: Build APK
         working-directory: OPPO2Strava_cloud
         run: |
