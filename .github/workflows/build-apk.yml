@@ -26,22 +26,45 @@ jobs:
           gradle-version: '8.13'
 
       - name: Extract Android project
+        shell: bash
         run: |
+          set -e
           unzip -q OPPO2Strava_v0_2_cloud_build.zip
           ls -la
           ls -la OPPO2Strava_cloud
-      - name: Fix Java and Kotlin target
+
+      - name: Force Java and Kotlin target to 17
         working-directory: OPPO2Strava_cloud
+        shell: bash
         run: |
-          find . -name "*.gradle" -o -name "*.gradle.kts" | xargs sed -i \
-            -e "s/JavaVersion.VERSION_1_8/JavaVersion.VERSION_17/g" \
-            -e "s/jvmTarget *= *['\"]1.8['\"]/jvmTarget = '17'/g" \
-            -e "s/sourceCompatibility *= *JavaVersion.VERSION_1_8/sourceCompatibility = JavaVersion.VERSION_17/g" \
-            -e "s/targetCompatibility *= *JavaVersion.VERSION_1_8/targetCompatibility = JavaVersion.VERSION_17/g"
+          set -e
+
+          find . -type f \( -name "*.gradle" -o -name "*.gradle.kts" \) -print0 |
+            xargs -0 -r sed -i \
+              -e 's/JavaVersion\.VERSION_1_8/JavaVersion.VERSION_17/g' \
+              -e 's/JavaVersion\.VERSION_8/JavaVersion.VERSION_17/g' \
+              -e 's/sourceCompatibility[[:space:]]*=[[:space:]]*["'\"'\"']1\.8["'\"'\"']/sourceCompatibility = JavaVersion.VERSION_17/g' \
+              -e 's/targetCompatibility[[:space:]]*=[[:space:]]*["'\"'\"']1\.8["'\"'\"']/targetCompatibility = JavaVersion.VERSION_17/g' \
+              -e 's/jvmTarget[[:space:]]*=[[:space:]]*["'\"'\"']1\.8["'\"'\"']/jvmTarget = "17"/g' \
+              -e 's/jvmTarget[[:space:]]*=[[:space:]]*["'\"'\"']8["'\"'\"']/jvmTarget = "17"/g'
+
+          cat > force-java17.gradle <<'EOF'
+          import org.gradle.api.tasks.compile.JavaCompile
+
+          allprojects {
+              tasks.withType(JavaCompile).configureEach {
+                  options.release = 17
+              }
+          }
+          EOF
+
       - name: Build APK
         working-directory: OPPO2Strava_cloud
+        shell: bash
         run: |
-          gradle --no-daemon :app:assembleDebug
+          set -e
+          chmod +x ./gradlew
+          ./gradlew --no-daemon --stacktrace -I force-java17.gradle :app:assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
