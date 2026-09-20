@@ -25,21 +25,49 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Extract Android project
+      - name: Find and extract Android project
         run: |
-          unzip -q OPP02Strava_v0_2_cloud_build.zip
-          ls -la
-          ls -la OPP02Strava_cloud
+          echo "Files in repository:"
+          ls -lah
+
+          ZIP_FILE=$(find . -maxdepth 2 -type f -iname "*.zip" | head -n 1)
+
+          if [ -z "$ZIP_FILE" ]; then
+            echo "ERROR: No ZIP file found!"
+            exit 1
+          fi
+
+          echo "Found ZIP: $ZIP_FILE"
+          unzip -q "$ZIP_FILE"
+
+          echo "After extraction:"
+          ls -lah
+
+      - name: Find Android project
+        run: |
+          PROJECT_DIR=$(find . -maxdepth 2 -type f -name "gradlew" -print -quit | xargs -r dirname)
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: Android Gradle project not found!"
+            exit 1
+          fi
+
+          echo "Android project: $PROJECT_DIR"
+          echo "$PROJECT_DIR" > project_dir.txt
 
       - name: Build APK
-        working-directory: OPP02Strava_cloud
         run: |
-          chmod +x gradlew
+          PROJECT_DIR=$(cat project_dir.txt)
+
+          chmod +x "$PROJECT_DIR/gradlew"
+
+          cd "$PROJECT_DIR"
+
           ./gradlew --no-daemon :app:assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: OPP02Strava-debug-apk
-          path: OPP02Strava_cloud/app/build/outputs/apk/debug/app-debug.apk
+          path: "**/app/build/outputs/apk/debug/app-debug.apk"
           if-no-files-found: error
